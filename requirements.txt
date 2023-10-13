@@ -1,0 +1,16 @@
+transformers==4.26.1
+datasets==2.10.0
+evaluate==0.4.0
+torch==1.13.1
+scikit-learn==1.2.1
+openpyxl==3.1.2
+seaborn==0.12.2
+sentencepiece==0.1.97
+protobuf==3.19.6
+imbalanced-learn==0.10.1
+
+numpy~=1.23.5
+pandas~=1.5.3
+tqdm~=4.64.1
+imblearn~=0.0
+ray==2.4.0
