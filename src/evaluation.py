@@ -17,9 +17,23 @@ except ImportError:
 def evaluate_prompt(
     model,
     prompt,
-    target_langs: list[str] = 'deu_Latn',
-    model_name: str = 'xlm-roberta-base',
+    target_langs: list[str],
+    model_name: str = 'xglm-564M',
 ) -> tuple:
+    """
+        Evaluate the performance of a given model and prompt on specific target languages.
+
+        Parameters:
+        - model (torch.nn.Module): Pre-trained model to be evaluated. If None, a model will be loaded based on model_name.
+        - prompt (torch.Tensor): Tensor representation of the prompt to be used.
+        - target_langs (list[str]): List of target languages to evaluate on.
+        - model_name (str): Name of the model to be used. Default is 'xglm-564M'.
+
+        Returns:
+        - tuple:
+          - accuracies (list[float]): List of accuracy scores for each target language.
+          - f1_scores (list[float]): List of F1 scores for each target language.
+        """
 
     # Clear GPU cache
     torch.cuda.empty_cache()
@@ -64,6 +78,7 @@ def evaluate_prompt(
 
     for target_lang in target_langs:
 
+        # Load verbalizer
         if "xglm" in model_name:
             label_to_token_dict = pd.read_excel('Data/sib-200_labels.xlsx', "xglm", index_col='original').to_dict()['en']
         elif "bloom" in model_name:
@@ -115,7 +130,7 @@ def evaluate_prompt(
         accuracies.append(acc)
         f1_scores.append(f1)
 
-        print('\n########################\nInference method 1\n########################')
+        print('\n########################\nInference\n########################')
         print(f'Target language: {target_lang}')
         print(f'Accuracy: {acc}')
         print(f'F1 score: {f1}')

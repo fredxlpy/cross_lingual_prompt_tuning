@@ -31,22 +31,40 @@ def train_prompt(
     reparam_hidden_size: int = 50,
     model_freezing: bool = True
 ) -> tuple:
+    """
+    Trains a prompt for a given model.
+
+    Parameters:
+    - source_lang (str): Language code of the source data. Default is 'en'.
+    - prompt_length (int): Length of the soft prompt. Default is 10.
+    - model_name (str): Name of the model. Default is 'xglm-564M'.
+    - n_train_samples_per_class (int or None): Number of training samples per class.
+                                               If None, all samples are used. Default is None.
+    - per_device_train_batch_size (int): Batch size for training. Default is 8.
+    - learning_rate (float): Learning rate for training. Default is 1e-5.
+    - n_epochs (int): Number of epochs for training. Default is 1.
+    - max_steps (int): Maximum number of steps for training. Default is 100.
+    - seed (int or None): Seed for reproducibility. If None, 42 is used. Default is None.
+    - reparameterization (bool): Whether to use reparameterization. Default is False.
+    - reparam_hidden_size (int): Hidden size for reparameterization network. Default is 50.
+    - model_freezing (bool): Whether to freeze the model during training. Default is True.
+
+    Returns:
+    - trainer (MyTrainer): Trainer object after training.
+    - prompt (numpy.ndarray): Trained prompt.
+    """
 
     # Clear GPU cache
     torch.cuda.empty_cache()
 
-    # Load tokenizer
+    # Load tokenizer and verbalizer
     if "xglm" in model_name:
         tokenizer = AutoTokenizer.from_pretrained(f'facebook/{model_name}')
-    elif "bloom" in model_name:
-        tokenizer = AutoTokenizer.from_pretrained(f'bigscience/{model_name}')
-    tokenizer.add_special_tokens({'additional_special_tokens': ['[PROMPT]']})
-
-    # Load data
-    if "xglm" in model_name:
         label_to_token_dict = pd.read_excel('Data/sib-200_labels.xlsx', "xglm", index_col='original').to_dict()['en']
     elif "bloom" in model_name:
+        tokenizer = AutoTokenizer.from_pretrained(f'bigscience/{model_name}')
         label_to_token_dict = pd.read_excel('Data/sib-200_labels.xlsx', "bloom", index_col='original').to_dict()['en']
+    tokenizer.add_special_tokens({'additional_special_tokens': ['[PROMPT]']})
 
     # Undersampling
     train_set = pd.read_table(f'Data/sib-200/{source_lang}/train.tsv')
@@ -59,6 +77,7 @@ def train_prompt(
     min_samples = val_set['label'].value_counts().min()
     val_set = val_set.groupby('label').apply(lambda x: x.sample(min_samples)).reset_index(drop=True)
 
+    # Preprocess dataset
     dataset = DatasetDict({'train': Dataset.from_pandas(train_set),
                            'validation': Dataset.from_pandas(val_set)})
     dataset = dataset.remove_columns('index_id')
@@ -66,7 +85,7 @@ def train_prompt(
     dataset = dataset.map(lambda x: {'category': label_to_token_dict[x['category']]})
     dataset = dataset.class_encode_column('label')
 
-    # Randomly select training and validation subsets (if few-show settings)
+    # Randomly select training and validation subsets
     if n_train_samples_per_class is not None:
         dataset['train'] = dataset['train'].train_test_split(
             train_size=len(label_to_token_dict) * n_train_samples_per_class,
@@ -87,7 +106,7 @@ def train_prompt(
 
     # Create model initialization function
     def model_init():
-        # Load tokenizer
+        # Load model
         if "xglm" in model_name:
             model = AutoModelForCausalLM.from_pretrained(f'facebook/{model_name}')
         elif "bloom" in model_name:
@@ -169,6 +188,7 @@ def train_prompt(
     # Train
     trainer.train()
 
+    # Extract trained prompt
     if reparameterization:
         if "xglm" in model_name:
             prompt = trainer.model.model.embed_tokens.mlp(
