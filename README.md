@@ -36,7 +36,7 @@ where \
     `--model_freezing` specifies whether all model parameters should be frozen. \
 
 
-To test the prompt, run the following:
+To test a prompt, run the following:
 ```
 python src/run_evaluation.py \
     --target_langs deu_Latn fra_Latn spa_Latn \
